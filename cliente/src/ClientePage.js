@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL_CLIENTES = 'https://tu-app-backend.onrender.com/api/clientes';
-const API_URL_PRODUCTOS = 'https://tu-app-backend.onrender.com/api/productos';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3004';
+
+const API_URL_CLIENTES = `${BASE_URL}/api/clientes`;
+const API_URL_PRODUCTOS = `${BASE_URL}/api/productos`;
 
 function ClientePage() {
     const [view, setView] = useState('LISTA_CLIENTES');
@@ -417,8 +419,8 @@ function ClientePage() {
                 <button
                     onClick={() =>
                         window.open(
-                            `http://localhost:3004/api/clientes/ventas/${selectedSale.id_venta}/boleta`,
-                            '_blank'
+                            `${BASE_URL}/api/clientes/ventas/${selectedSale.id_venta}/boleta`,
+                '_blank'
                         )
                     }
                     className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
