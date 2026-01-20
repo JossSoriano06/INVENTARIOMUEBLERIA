@@ -24,7 +24,7 @@ let db;
       user: process.env.MYSQLUSER || 'root',
       password: process.env.MYSQLPASSWORD || 'aUNNwYhcJAOhAPxVXDQtRPjljeUPMiwz',
       database: process.env.MYSQLDATABASE || 'railway',
-      port: process.env.MYSQLPORT || 16116
+      port: parseInt(process.env.MYSQLPORT) || 16116
     });
 
     console.log('Conexión a la base de datos exitosa.');
@@ -37,7 +37,7 @@ let db;
     app.use('/api/clientes', clientesRoutes);
 
 
-    
+
     app.get('/', (req, res) => {
       res.send('API de Mueblería funcionando en la nube.');
     });
