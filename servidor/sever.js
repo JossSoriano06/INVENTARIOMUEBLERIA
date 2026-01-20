@@ -12,7 +12,11 @@ const PORT = process.env.PORT || 3004;
 app.use(bodyParser.json());
 
 // AJUSTE 2: CORS abierto o con tu futura URL de Vercel
-app.use(cors()); // Por ahora abierto para facilitar las pruebas iniciales
+app.use(cors({
+  origin: 'https://muebleriaelmarquez.vercel.app', // Agrega aquí tu URL de Vercel
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 
 let db; 
 
