@@ -4,24 +4,27 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3004;
+
+// AJUSTE 1: Puerto dinámico (prioriza el puerto del servidor)
+const PORT = process.env.PORT || 3004;
 
 // Middlewares
 app.use(bodyParser.json());
-app.use(cors({
-  origin: 'http://localhost:3000'
-}));
 
-let db; // conexión global
+// AJUSTE 2: CORS abierto o con tu futura URL de Vercel
+app.use(cors()); // Por ahora abierto para facilitar las pruebas iniciales
+
+let db; 
 
 (async () => {
   try {
-    // Conexión a MySQL (PROMISE)
+    // Conexión flexible
     db = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: '061105',
-      database: 'muebles',
+      host: process.env.MYSQLHOST || 'maglev.proxy.rlwy.net',
+      user: process.env.MYSQLUSER || 'root',
+      password: process.env.MYSQLPASSWORD || 'aUNNwYhcJAOhAPxVXDQtRPjljeUPMiwz',
+      database: process.env.MYSQLDATABASE || 'railway',
+      port: process.env.MYSQLPORT || 16116
     });
 
     console.log('Conexión a la base de datos exitosa.');
@@ -34,14 +37,14 @@ let db; // conexión global
     app.use('/api/clientes', clientesRoutes);
 
 
-    // Endpoint de prueba
+    
     app.get('/', (req, res) => {
-      res.send('API de Mueblería funcionando.');
+      res.send('API de Mueblería funcionando en la nube.');
     });
 
-    // Iniciar servidor SOLO cuando la BD esté lista
-    app.listen(PORT, () => {
-      console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    // AJUSTE 3: Escuchar en todas las interfaces para Render
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Servidor corriendo en puerto: ${PORT}`);
     });
 
   } catch (error) {
