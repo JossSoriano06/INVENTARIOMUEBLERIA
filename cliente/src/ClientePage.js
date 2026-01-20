@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL_CLIENTES = 'http://localhost:3004/api/clientes';
-const API_URL_PRODUCTOS = 'http://localhost:3004/api/productos';
+const API_URL_CLIENTES = 'https://tu-app-backend.onrender.com/api/clientes';
+const API_URL_PRODUCTOS = 'https://tu-app-backend.onrender.com/api/productos';
 
 function ClientePage() {
     const [view, setView] = useState('LISTA_CLIENTES');
