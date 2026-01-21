@@ -301,6 +301,7 @@ function ClientePage() {
                             <th>Cant</th>
                             <th>Precio</th>
                             <th>Subtotal</th>
+                            
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-center" >
@@ -311,7 +312,8 @@ function ClientePage() {
                                 <td>{i.cantidad}</td>
                                 <td>S/ {i.precio}</td>
                                 <td>S/ {i.subtotal.toFixed(2)}</td>
-                            </tr>
+                                
+                                </tr>
                         ))}
                     </tbody>
                     <tfoot className='text-center bg-gray-50'>

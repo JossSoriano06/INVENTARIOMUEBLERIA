@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'https://tu-app-backend.onrender.com/api/productos';
+const API_URL = 'https://muebleria-backend-9kfb.onrender.com/api/productos';
 
 function Producto() {
     const [productos, setProductos] = useState([]); 
