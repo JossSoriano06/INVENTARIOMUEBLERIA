@@ -9,7 +9,7 @@ function Navbar() {
       <div className="container mx-auto flex justify-between items-center">
         <div className="text-xl font-bold text-white">
           <Link to="/" className="hover:text-indigo-200 transition duration-150">
-            Mueblería 
+            Inicio
           </Link>
         </div>
         <div className="space-x-4">

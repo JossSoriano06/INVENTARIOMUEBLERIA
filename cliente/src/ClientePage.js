@@ -20,7 +20,8 @@ function ClientePage() {
 
     const [formDataCliente, setFormDataCliente] = useState({
         nombre_cliente: '',
-        apellido_cliente: ''
+        apellido_cliente: '',
+        referencia_cliente: ''
     });
 
     const [cart, setCart] = useState([]);
@@ -198,6 +199,11 @@ function ClientePage() {
                         onChange={e => setFormDataCliente({ ...formDataCliente, apellido_cliente: e.target.value })}
                         required
                     />
+                    <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Referencia"
+                        value={formDataCliente.referencia_cliente}
+                        onChange={e => setFormDataCliente({ ...formDataCliente, referencia_cliente: e.target.value })}
+                        required
+                    />
                     <button className="bg-indigo-600 shadow-sm text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 transition-colors w-full md:w-auto">Agregar</button>
                 </form>
                 <div className="overflow-x-auto">
@@ -213,7 +219,7 @@ function ClientePage() {
                         {clientes.map(c => (
                             <tr key={c.id_clientes} className="hover:bg-indigo-50">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{c.id_clientes}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{c.nombre_cliente} {c.apellido_cliente}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{c.nombre_cliente} ({c.referencia_cliente}) </td>
                                 <td className="space-x-3 whitespace-nowrap">
                                     <button
                                         onClick={() => { setSelectedClient(c); setView('NUEVA_VENTA'); }}
