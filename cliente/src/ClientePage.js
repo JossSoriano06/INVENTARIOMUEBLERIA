@@ -104,6 +104,11 @@ function ClientePage() {
         setCart([...cart, item]);
         setCurrentItem({ id_producto: '',color: '', cantidad: 1, precio: '' });
     };
+    const removeFromCart = (index) => {
+    // Filtramos el carrito manteniendo todos los elementos excepto el que coincide con el índice
+    const newCart = cart.filter((_, i) => i !== index);
+    setCart(newCart);
+};
 
   const procesarVentaFinal = async () => {
     if (!selectedClient) return alert('Seleccione cliente');
@@ -173,6 +178,8 @@ function ClientePage() {
         cantidad: 1,
         subtotal: 0
     });
+
+    
 
     // Quitar cliente seleccionado (opcional)
     setSelectedClient(null);
@@ -307,6 +314,7 @@ function ClientePage() {
                             <th>Cant</th>
                             <th>Precio</th>
                             <th>Subtotal</th>
+                            <th>Accion</th>
                             
                         </tr>
                     </thead>
@@ -318,7 +326,16 @@ function ClientePage() {
                                 <td>{i.cantidad}</td>
                                 <td>S/ {i.precio}</td>
                                 <td>S/ {i.subtotal.toFixed(2)}</td>
-                                
+                                <td className="px-4 py-2">
+                    <button 
+                        onClick={() => removeFromCart(idx)}
+                        className="bg-red-100 text-red-600 hover:bg-red-600 hover:text-white p-2 rounded-lg transition-all duration-300 flex items-center justify-center mx-auto"
+                        title="Eliminar producto"
+                    >
+                        
+                        <span className="text-sm font-bold">Quitar</span>
+                    </button>
+                </td>
                                 </tr>
                         ))}
                     </tbody>
@@ -332,7 +349,9 @@ function ClientePage() {
                     </tfoot>
                     
                 </table>
-
+                <button onClick={cancelarVenta}className="ml-4 bg-red-600 text-white px-6 py-2 rounded">
+             Cancelar Venta
+            </button>
                 <button
                     onClick={procesarVentaFinal}
                     disabled={loading}
@@ -340,9 +359,7 @@ function ClientePage() {
                 >
                     {loading ? 'Procesando...' : 'Confirmar Venta'}
                 </button>
-           <button onClick={cancelarVenta}className="ml-4 bg-red-600 text-white px-6 py-2 rounded">
-             Cancelar Venta
-            </button>
+           
 
                 
             </div>
