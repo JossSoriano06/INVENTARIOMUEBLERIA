@@ -51,7 +51,7 @@ function ClientePage() {
     const handleAddCliente = async (e) => {
         e.preventDefault();
         await axios.post(API_URL_CLIENTES, formDataCliente);
-        setFormDataCliente({ nombre_cliente: '', apellido_cliente: '' });
+        setFormDataCliente({ nombre_cliente: '', apellido_cliente: '', referencia_cliente: '' });
         fetchClientes();
     };
 
