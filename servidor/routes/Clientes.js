@@ -11,7 +11,7 @@ module.exports = function (db) {
     router.get('/', async (req, res) => {
         try {
             const [rows] = await db.query(`
-                SELECT id_clientes, nombre_cliente, apellido_cliente
+                SELECT id_clientes, nombre_cliente, apellido_cliente, referencia_cliente
                 FROM clientes
                 ORDER BY id_clientes DESC
             `);
@@ -29,7 +29,7 @@ module.exports = function (db) {
     router.post('/', async (req, res) => {
         const { nombre_cliente, apellido_cliente, referencia_cliente } = req.body;
 
-        if (!nombre_cliente || !apellido_clientem || !referencia_cliente) {
+        if (!nombre_cliente || !apellido_cliente || !referencia_cliente) {
             return res.status(400).json({ message: 'Datos incompletos' });
         }
 
