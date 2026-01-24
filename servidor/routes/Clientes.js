@@ -27,16 +27,16 @@ module.exports = function (db) {
     // CREAR CLIENTE
     // =========================
     router.post('/', async (req, res) => {
-        const { nombre_cliente, apellido_cliente } = req.body;
+        const { nombre_cliente, apellido_cliente, referencia_cliente } = req.body;
 
-        if (!nombre_cliente || !apellido_cliente) {
+        if (!nombre_cliente || !apellido_clientem || !referencia_cliente) {
             return res.status(400).json({ message: 'Datos incompletos' });
         }
 
         try {
             const [result] = await db.query(
-                'INSERT INTO clientes (nombre_cliente, apellido_cliente) VALUES (?, ?)',
-                [nombre_cliente, apellido_cliente]
+                'INSERT INTO clientes (nombre_cliente, apellido_cliente, referencia_cliente) VALUES (?, ?, ?)',
+                [nombre_cliente, apellido_cliente, referencia_cliente]
             );
             res.status(201).json({ id: result.insertId });
         } catch (error) {
@@ -153,7 +153,7 @@ module.exports = function (db) {
 
         const [venta] = await db.query(
             `INSERT INTO ventas (fecha_vente, total_venta, id_cliente)
-             VALUES (CURDATE(), ?, ?)`,
+                VALUES (DATE(CONVERT_TZ(NOW(), '+00:00', '-05:00')), ?, ?)`,
             [total, id_cliente]
         );
 
