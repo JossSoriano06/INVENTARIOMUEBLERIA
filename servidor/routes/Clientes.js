@@ -150,12 +150,15 @@ module.exports = function (db) {
             }
             total += Number(p.cantidad) * Number(p.precio);
         }
+        
+        const fechaPeru = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Lima' });
 
-        const [venta] = await db.query(
-            `INSERT INTO ventas (fecha_vente, total_venta, id_cliente)
-                VALUES (DATE(CONVERT_TZ(NOW(), '+00:00', '-05:00')), ?, ?)`,
-            [total, id_cliente]
-        );
+    
+    const [venta] = await db.query(
+        `INSERT INTO ventas (fecha_vente, total_venta, id_cliente)
+         VALUES (?, ?, ?)`,
+        [fechaPeru, total, id_cliente]
+    );
 
         const id_venta = venta.insertId;
 
@@ -246,7 +249,7 @@ doc.image(path.join(__dirname, '../assets/logo2.png'), 40, 40, { width: 70 });
 
 doc.fillColor('#1a1a1a')
    .fontSize(16).font('Helvetica-Bold').text('MUEBLERIA "EL MARQUÉZ"', 130, 45)
-   .fontSize(9).font('Helvetica').text('RUC: 10732746035', 130, 65)
+   .fontSize(9).font('Helvetica').text('TELF: 995888883', 130, 65)
    .text('PILCOMAYO - HUANCAYO - JUNIN', 130, 78)
    .fontSize(8).fillColor('gray').text('Fabricación y venta de muebles para el hogar y oficina', 130, 92);
 

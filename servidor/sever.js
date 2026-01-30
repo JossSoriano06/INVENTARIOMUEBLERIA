@@ -5,7 +5,7 @@ const cors = require('cors');
 
 const app = express();
 
-// AJUSTE 1: Puerto dinámico (prioriza el puerto del servidor)
+// AJUSTE 1: Puerto dinámico 
 const PORT = process.env.PORT || 3004;
 
 // Middlewares
@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 
 // AJUSTE 2: CORS abierto o con tu futura URL de Vercel
 app.use(cors({
-  origin: 'https://muebleriaelmarquez.vercel.app', // Agrega aquí tu URL de Vercel
+  origin: 'https://muebleriaelmarquez.vercel.app', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
