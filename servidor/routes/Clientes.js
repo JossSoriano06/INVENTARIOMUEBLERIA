@@ -92,7 +92,7 @@ module.exports = function (db) {
     router.get('/:id/ventas', async (req, res) => {
         try {
             const [rows] = await db.query(`
-                SELECT id_venta, fecha_vente, total_venta
+                SELECT id_venta, fecha_vente, total_venta, pago_acumulado, estado_pago
                 FROM ventas
                 WHERE id_cliente = ?
                 ORDER BY fecha_vente DESC, id_venta DESC
@@ -129,18 +129,20 @@ module.exports = function (db) {
         }
     });
 
+
     // =========================
     // CREAR VENTA 
     // =========================
     router.post('/:id/ventas', async (req, res) => {
     const id_cliente = req.params.id;
-    const { productos } = req.body;
+    const { productos, pago_inicial } = req.body;
 
     if (!productos || productos.length === 0) {
         return res.status(400).json({ message: 'Carrito vacío' });
     }
 
     try {
+        const monto_pagado = Number(pago_inicial) || 0;
         await db.beginTransaction();
 
         let total = 0;
@@ -151,14 +153,15 @@ module.exports = function (db) {
             total += Number(p.cantidad) * Number(p.precio);
         }
         
-        const fechaPeru = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Lima' });
-
-    
-    const [venta] = await db.query(
-        `INSERT INTO ventas (fecha_vente, total_venta, id_cliente)
-         VALUES (?, ?, ?)`,
-        [fechaPeru, total, id_cliente]
-    );
+        if (pago_inicial > total) {
+            return res.status(400).json({ message: 'El pago no puede ser mayor al total' });
+        }
+        const estado = (pago_inicial === total) ? 'cancelado' : 'pendiente';
+        const [venta] = await db.query(
+    `INSERT INTO ventas (fecha_vente, total_venta, id_cliente, pago_acumulado, estado_pago)
+     VALUES (CURDATE(), ?, ?, ?, ?)`,
+    [total, id_cliente, pago_inicial, estado]
+);
 
         const id_venta = venta.insertId;
 
@@ -189,6 +192,108 @@ module.exports = function (db) {
     } catch (error) {
         await db.rollback();
         console.error('ERROR VENTA:', error.message);
+        res.status(500).json({ message: error.message });
+    }
+});
+ //para la actuzliacion del pago
+ // PUT /api/ventas/:id/abonar
+router.put('/:id/abonar', async (req, res) => {
+    const { id } = req.params;
+    const { monto_abono } = req.body;
+
+    try {
+        // 1. Obtener la venta actual
+        const [rows] = await db.query('SELECT total_venta, pago_acumulado FROM ventas WHERE id_venta = ?', [id]);
+        if (rows.length === 0) return res.status(404).send('Venta no encontrada');
+
+        const { total_venta, pago_acumulado } = rows[0];
+        const nuevo_total_pago = Number(pago_acumulado) + Number(monto_abono);
+
+        // 2. Validar que no sobrepase el total
+        if (nuevo_total_pago > total_venta) {
+            return res.status(400).send('El abono sobrepasa el total de la venta');
+        }
+
+        // 3. Actualizar
+        const nuevo_estado = (nuevo_total_pago === Number(total_venta)) ? 'cancelado' : 'pendiente';
+        
+        await db.query(
+            'UPDATE ventas SET pago_acumulado = ?, estado_pago = ? WHERE id_venta = ?',
+            [nuevo_total_pago, nuevo_estado, id]
+        );
+
+        res.json({ message: 'Abono registrado con éxito', total_pagado: nuevo_total_pago });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+});
+
+ //ver el abono acumulado y el estado de pago
+ // Obtener estado de cuenta de una venta
+router.get('/ventas/:id/pagos', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [venta] = await db.query(
+            'SELECT total_venta, pago_acumulado, estado_pago FROM ventas WHERE id_venta = ?', 
+            [id]
+        );
+        const [abonos] = await db.query(
+            'SELECT * FROM abonos WHERE id_venta = ? ORDER BY fecha_abono DESC', 
+            [id]
+        );
+        
+        res.json({
+            resumen: venta[0],
+            historial: abonos
+        });
+    } catch (error) {
+        res.status(500).send(error.message);
+    }
+});
+//nuevo abono 
+// Ruta para registrar un nuevo abono
+router.post('/ventas/:id_venta/abono', async (req, res) => {
+    const { id_venta } = req.params;
+    const { monto_abono } = req.body;
+
+    try {
+        await db.beginTransaction();
+
+        // 1. Obtener datos actuales de la venta
+        const [venta] = await db.query(
+            'SELECT total_venta, pago_acumulado FROM ventas WHERE id_venta = ?',
+            [id_venta]
+        );
+
+        if (venta.length === 0) throw new Error("Venta no encontrada");
+
+        const totalVenta = Number(venta[0].total_venta);
+        const pagoActual = Number(venta[0].pago_acumulado);
+        const nuevoPagoAcumulado = pagoActual + Number(monto_abono);
+
+        // 2. Validar que no pague de más
+        if (nuevoPagoAcumulado > totalVenta) {
+            return res.status(400).json({ message: "El abono supera el saldo pendiente" });
+        }
+
+        // 3. Registrar el abono en la tabla 'abonos'
+        await db.query(
+            'INSERT INTO abonos (id_venta, monto_abono) VALUES (?, ?)',
+            [id_venta, monto_abono]
+        );
+
+        // 4. Actualizar el pago acumulado y estado en la tabla 'ventas'
+        const nuevoEstado = (nuevoPagoAcumulado === totalVenta) ? 'cancelado' : 'pendiente';
+        await db.query(
+            'UPDATE ventas SET pago_acumulado = ?, estado_pago = ? WHERE id_venta = ?',
+            [nuevoPagoAcumulado, nuevoEstado, id_venta]
+        );
+
+        await db.commit();
+        res.json({ message: "Abono registrado con éxito", nuevoPagoAcumulado });
+
+    } catch (error) {
+        await db.rollback();
         res.status(500).json({ message: error.message });
     }
 });
@@ -292,7 +397,7 @@ detalle.forEach((d, index) => {
     doc.moveTo(40, currentY + 15).lineTo(560, currentY + 15).lineWidth(0.5).stroke('#eeeeee');
 
     doc.text(index + 1, itemCodeX, currentY);
-    doc.text(`${d.nombre_producto} (${d.color || 'Estándar'})`, descriptionX, currentY);
+    doc.text(`${d.nombre_producto} - ${d.color || 'N/A'}`, descriptionX, currentY);
     doc.text(`S/ ${parseFloat(d.precio).toFixed(2)}`, priceX, currentY);
     doc.text(d.cantidad, quantityX, currentY);
     doc.font('Helvetica-Bold').text(`S/ ${parseFloat(d.subtotal).toFixed(2)}`, amountX, currentY);
