@@ -17,6 +17,7 @@ function ClientePage() {
     const [clientSales, setClientSales] = useState([]);
     const [selectedSale, setSelectedSale] = useState(null);
     const [saleItems, setSaleItems] = useState([]);
+    const [pagoInicial, setPagoInicial] = useState(0);
 
     const [formDataCliente, setFormDataCliente] = useState({
         nombre_cliente: '',
@@ -138,6 +139,78 @@ function ClientePage() {
         alert('Error al procesar venta');
     } finally {
         setLoading(false);
+    }
+};
+    // Nueva función para procesar venta con pago inicial
+    const totalCarrito = cart.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
+    const handleFinalizarVenta = async () => {
+    // 1. Validaciones previas
+    if (!selectedClient) return alert("Por favor, selecciona un cliente primero.");
+    if (cart.length === 0) return alert("El carrito está vacío.");
+    
+    if (pagoInicial > totalCarrito) {
+        alert("El pago inicial no puede ser mayor al total de la venta.");
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+        // 2. Mapear productos para el backend
+        const productos = cart.map(p => ({
+            id_producto: p.id_producto,
+            color: p.color,
+            cantidad: Number(p.cantidad),
+            precio: Number(p.precio)
+            
+        }));
+
+        // 3. Petición al servidor (Usamos selectedClient.id_clientes)
+        const response = await axios.post(`${API_URL_CLIENTES}/${selectedClient.id_clientes}/ventas`, {
+            productos: productos,
+            pago_inicial: Number(pagoInicial)
+        });
+
+        // 4. Éxito
+        alert("Venta registrada con éxito");
+        
+        // Limpiar todo y volver a la lista
+        setCart([]);
+        setPagoInicial(0);
+        setSelectedClient(null);
+        setView('LISTA_CLIENTES');
+        fetchClientes(); // Refrescar por si acaso
+
+    } catch (error) {
+        console.error("Error en venta:", error);
+        alert(error.response?.data?.message || "Error al procesar la venta");
+    } finally {
+        setLoading(false);
+    }
+};
+
+//funcion para ver nuevo abono 
+const handleRegistrarAbono = async (monto) => {
+    if (!monto || monto <= 0) return alert("Ingrese un monto válido");
+
+    try {
+        const res = await axios.post(`${API_URL_CLIENTES}/ventas/${selectedSale.id_venta}/abono`, {
+            monto_abono: Number(monto)
+        });
+
+        alert(res.data.message);
+
+        // Actualizamos el estado local para que el "Saldo Pendiente" se vea reflejado
+        setSelectedSale({
+            ...selectedSale,
+            pago_acumulado: res.data.nuevoPagoAcumulado
+        });
+
+        // Limpiar el input
+        document.getElementById('inputAbono').value = '';
+
+    } catch (error) {
+        alert(error.response?.data?.message || "Error al registrar abono");
     }
 };
 
@@ -340,32 +413,73 @@ function ClientePage() {
                                 </tr>
                         ))}
                     </tbody>
-                    <tfoot className='text-center bg-gray-50'>
-                        <tr>
-                            <td colSpan="4" className="text-right font-bold">Total:</td>
-                            <td className="font-bold">
-                                S/ {cart.reduce((acc, item) => acc + item.subtotal, 0).toFixed(2)}
-                            </td>
-                        </tr>
-                    </tfoot>
+                   
                     
                 </table>
-                <button onClick={cancelarVenta}className="ml-4 bg-red-600 text-white px-6 py-2 rounded">
-             Cancelar Venta
-            </button>
-                <button
-                    onClick={procesarVentaFinal}
-                    disabled={loading}
-                    className="bg-indigo-600 text-white px-6 py-2 rounded"
-                >
-                    {loading ? 'Procesando...' : 'Confirmar Venta'}
-                </button>
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        
+        {/* Resumen de totales */}
+        <div>
+            <p className="text-gray-600">Total a pagar:</p>
+            <p className="text-2xl font-bold text-indigo-700 font-mono">
+                S/ {totalCarrito.toFixed(2)}
+            </p>
+        </div>
+
+        {/* Campo de Pago Inicial */}
+        <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-700 mb-1">
+                Pago Inicial (Acuenta):
+            </label>
+            <div className="relative">
+                <span className="absolute left-3 top-2 text-gray-500 font-mono">S/</span>
+                <input 
+                    type="number"
+                    value={pagoInicial}
+                    onChange={(e) => setPagoInicial(Number(e.target.value))}
+                    className="pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-48 font-mono"
+                    placeholder="0.00"
+                    min="0"
+                    max={totalCarrito}
+                />
+            </div>
+            {pagoInicial < totalCarrito && pagoInicial > 0 && (
+                <span className="text-xs text-orange-600 mt-1 font-medium">
+                    Quedará un saldo de: S/ {(totalCarrito - pagoInicial).toFixed(2)}
+                </span>
+            )}
+        </div>
+
+        
+    </div>
+</div>
+                <div className="flex gap-4 mt-4">
+    <button 
+        onClick={cancelarVenta} 
+        className="bg-red-600 text-white px-6 py-2 rounded font-bold hover:bg-red-700"
+    >
+        Cancelar Venta
+    </button>
+    
+    <button
+        onClick={handleFinalizarVenta}
+        disabled={loading || cart.length === 0}
+        className={`px-6 py-2 rounded font-bold text-white transition-all ${
+            loading || cart.length === 0 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg'
+        }`}
+    >
+        {loading ? 'Procesando...' : 'Confirmar y Finalizar Venta'}
+    </button>
+</div>
            
 
                 
             </div>
         );
-    }
+}
 
     if (view === 'VENTAS_CLIENTE') {
         return (
@@ -376,70 +490,132 @@ function ClientePage() {
                     Historial de {selectedClient.nombre_cliente} {selectedClient.apellido_cliente}
                 </h2>
 
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th>ID</th>
-                            <th>Fecha</th>
-                            <th>Total</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {clientSales.map(v => (
-                            <tr key={v.id_venta} className="border-t text-center">
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{v.id_venta}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{new Date(v.fecha_vente).toLocaleDateString()}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">S/ {v.total_venta}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <button
-                                        onClick={() => verDetalleVenta(v)} className='text-sm text-blue-800 text-bold'  > Ver  </button>  </td>          
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                
+<table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+    <thead className="bg-blue-100 h-10">
+        <tr>
+            <th>Fecha</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody className="bg-white divide-y divide-gray-200">
+        {clientSales.map(v => {
+            const total = Number(v.total_venta);
+            const pagado = Number(v.pago_acumulado || 0);
+            const saldo = total - pagado;
+
+            return (
+                <tr className='text-center pt-3 h-10' key={v.id_venta}>
+                    <td>{new Date(v.fecha_vente).toLocaleDateString()}</td>
+                    <td className="font-mono">S/{total.toFixed(2)}</td>
+                    
+                    
+                    <td>
+                        <span className={`px-2 py-1 inline-block rounded text-xs font-bold ${v.estado_pago === 'cancelado' ? 'bg-green-100 text-green-500' : 'bg-yellow-100 text-yellow-500'}`}>
+                            {v.estado_pago}
+                        </span>
+                    </td>
+                    <td>
+                        <button onClick={() => verDetalleVenta(v)} className="text-indigo-600 font-bold">
+                            Detalle
+                        </button>
+                    </td>
+                </tr>
+            );
+        })}
+    </tbody>
+</table>
             </div>
         );
     }
 
     if (view === 'DETALLE_VENTA') {
-        return (
-            <div className="container mx-auto p-6">
-                <button onClick={() => setView('VENTAS_CLIENTE')} className="mb-4 text-indigo-600">← Volver</button>
+    const totalVenta = Number(selectedSale.total_venta);
+    const pagado = Number(selectedSale.pago_acumulado || 0);
+    const saldoPendiente = totalVenta - pagado;
 
-                <h2 className="text-xl font-bold mb-4">
-                    Detalle Venta #{selectedSale.id_venta}
-                </h2>
+    return (
+        <div className="container mx-auto p-6">
+            <button onClick={() => setView('VENTAS_CLIENTE')} className="mb-4 text-indigo-600">← Volver al historial</button>
+            
+            <h2 className="text-2xl font-bold mb-2">Detalle de Venta #{selectedSale.id_venta}</h2>
+            <p className="text-gray-600 mb-6">Cliente: {selectedClient.nombre_cliente}</p>
 
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th>Producto</th>
-                             <th>Color</th>
-                            <th>Cantidad</th>
-                            <th>Subtotal</th>
+            {/* TARJETAS DE ESTADO DE CUENTA */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-white p-4 rounded-lg shadow border-l-4 border-indigo-500">
+                    <p className="text-sm text-gray-500 uppercase font-bold">Total Venta</p>
+                    <p className="text-2xl font-mono text-gray-800">S/ {totalVenta.toFixed(2)}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                    <p className="text-sm text-gray-500 uppercase font-bold">Total Pagado</p>
+                    <p className="text-2xl font-mono text-green-600">S/ {pagado.toFixed(2)}</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+                    <p className="text-sm text-gray-500 uppercase font-bold">Saldo Pendiente</p>
+                    <p className={`text-2xl font-mono ${saldoPendiente > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                        S/ {saldoPendiente.toFixed(2)}
+                    </p>
+                </div>
+            </div>
+
+            
+            <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+                <thead className="bg-blue-100">
+                    <tr>
+                        <th className="p-3 text-left">Producto</th>
+                        <th className="p-3">Color</th>
+                        <th className="p-3">Cantidad</th>
+                        <th className="p-3">Precio</th>
+                        <th className="p-3">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {saleItems.map((item, idx) => (
+                        <tr key={idx} className="border-b">
+                            <td className="p-3">{item.nombre_producto}</td>
+                            <td className="p-3 text-center">{item.color}</td>
+                            <td className="p-3 text-center">{item.cantidad}</td>
+                            <td className="p-3 text-center">S/ {item.precio}</td>
+                            <td className="p-3 text-center font-bold text-gray-700">S/ {item.subtotal}</td>
                         </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {saleItems.map((i, idx) => (
-                            <tr key={idx} className="border-t text-center">
-                                <td>{i.nombre_producto}</td>
-                                <td>{i.color}</td>
-                                <td>{i.cantidad}</td>
-                                <td>S/ {i.subtotal}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                        <tr className='text-center'>
-                            <td colSpan="3" className="text-right font-bold">Total:</td>
-                            <td className="font-bold">
-                                S/ {selectedSale.total_venta}
-                            </td>
-                        </tr>
-                    </tfoot>
-                    
-                </table>
+                    ))}
+                </tbody>
+            </table>
+
+        
+{saldoPendiente > 0 && (
+    <div className="mt-8 p-6 bg-white border border-blue-500 rounded-lg shadow-inner">
+        <h3 className="text-lg font-bold text-blue-800 mb-2">Registrar nuevo cobro</h3>
+        <div className="flex items-center gap-4">
+            <div className="relative">
+                <span className="absolute left-3 top-2 text-gray-400">S/</span>
+                <input 
+                    type="number" 
+                    id="inputAbono"
+                    placeholder="0.00"
+                    className="pl-8 pr-4 py-2 border border-blue-500  rounded-md w-40 focus:ring-2 focus:ring-yellow-400 outline-none"
+                />
+            </div>
+            <button 
+                className="bg-green-600 text-white px-6 py-2 rounded-md font-bold hover:bg-green-700 shadow transition-transform active:scale-95"
+                onClick={() => {
+                    const monto = document.getElementById('inputAbono').value;
+                    handleRegistrarAbono(monto);
+                }}
+            >
+                Confirmar Cobro
+            </button>
+        </div>
+        <p className="text-xs text-blue-700 mt-2 italic">
+            * El monto ingresado se sumará al total pagado y reducirá el saldo.
+        </p>
+    </div>
+)}
+            
+       
                         {/* BOTÓN DE BOLETA */}
             <div className="mt-6 flex justify-end">
                 <button
