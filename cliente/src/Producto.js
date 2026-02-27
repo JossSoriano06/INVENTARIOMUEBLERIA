@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API_URL = 'https://muebleria-backend-9kfb.onrender.com/api/productos';
-
+//const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3004/api/productos';
 function Producto() {
     const [productos, setProductos] = useState([]); 
     const [formData, setFormData] = useState({ 

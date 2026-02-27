@@ -433,10 +433,10 @@ const handleRegistrarAbono = async (monto) => {
                 Pago Inicial (Acuenta):
             </label>
             <div className="relative">
-                <span className="absolute left-3 top-2 text-gray-500 font-mono">S/</span>
+                <span className="absolute left-3 top-2 text-gray-500 font-mono">S/ </span>
                 <input 
                     type="number"
-                    value={pagoInicial}
+                    value={pagoInicial === 0 ? '' : pagoInicial}
                     onChange={(e) => setPagoInicial(Number(e.target.value))}
                     className="pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-48 font-mono"
                     placeholder="0.00"
