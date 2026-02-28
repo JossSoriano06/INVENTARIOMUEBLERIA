@@ -344,6 +344,12 @@ router.get('/ventas/:id/boleta', async (req, res) => {
 
         // ===== PDF SETUP =====
 const doc = new PDFDocument({ size: 'A4', margin: 40 });
+const fechaPeru = new Date().toLocaleDateString('es-PE', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+});
 
 res.setHeader('Content-Type', 'application/pdf');
 res.setHeader('Content-Disposition', `inline; filename=${numeroBoleta}.pdf`);
@@ -363,7 +369,7 @@ doc.fillColor('#1a1a1a')
 doc.rect(380, 40, 180, 75).lineWidth(1.5).stroke('#050a17'); 
 doc.fillColor('#050a17').fontSize(11).font('Helvetica-Bold').text('NOTA DE VENTA', 390, 50, { width: 160, align: 'center' });
 doc.fillColor('black').fontSize(12).text(numeroBoleta, 390, 70, { align: 'center' });
-doc.fontSize(9).font('Helvetica').text(`Fecha: ${new Date().toLocaleDateString()}`, 390, 95, { align: 'center' });
+doc.fontSize(9).font('Helvetica').text(`Fecha: ${fechaPeru}`, 390, 95, { align: 'center' });
 
 // ===== DATOS DEL CLIENTE =====
 doc.roundedRect(40, 130, 520, 40, 5).lineWidth(0.5).stroke('#cccccc');
