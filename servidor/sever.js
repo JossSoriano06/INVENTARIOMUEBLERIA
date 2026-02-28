@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3004;
 // Middlewares
 app.use(bodyParser.json());
 const allowedOrigins = [
-'',
+'https://muebleriaelmarquez.vercel.app',
 'http://localhost:3000'
 ];
 // AJUSTE 2: CORS abierto o con tu futura URL de Vercel
