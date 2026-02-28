@@ -5,6 +5,55 @@ const path = require('path');
 module.exports = function (db) {
     const router = express.Router();
 
+    //nuevo abono 
+// Ruta para registrar un nuevo abono
+router.post('/ventas/:id_venta/abono', async (req, res) => {
+    const { id_venta } = req.params;
+    const { monto_abono } = req.body;
+
+    try {
+        await db.beginTransaction();
+
+        // 1. Obtener datos actuales de la venta
+        const [venta] = await db.query(
+            'SELECT total_venta, pago_acumulado FROM ventas WHERE id_venta = ?',
+            [id_venta]
+        );
+
+        if (venta.length === 0) throw new Error("Venta no encontrada");
+
+        const totalVenta = Number(venta[0].total_venta);
+        const pagoActual = Number(venta[0].pago_acumulado);
+        const nuevoPagoAcumulado = pagoActual + Number(monto_abono);
+
+        // 2. Validar que no pague de más
+        if (nuevoPagoAcumulado > totalVenta) {
+            return res.status(400).json({ message: "El abono supera el saldo pendiente" });
+        }
+
+        // 3. Registrar el abono en la tabla 'abonos'
+        await db.query(
+            'INSERT INTO abonos (id_venta, monto_abono) VALUES (?, ?)',
+            [id_venta, monto_abono]
+        );
+
+        // 4. Actualizar el pago acumulado y estado en la tabla 'ventas'
+        const nuevoEstado = (nuevoPagoAcumulado === totalVenta) ? 'cancelado' : 'pendiente';
+        await db.query(
+            'UPDATE ventas SET pago_acumulado = ?, estado_pago = ? WHERE id_venta = ?',
+            [nuevoPagoAcumulado, nuevoEstado, id_venta]
+        );
+
+        await db.commit();
+        res.json({ message: "Abono registrado con éxito", nuevoPagoAcumulado });
+
+    } catch (error) {
+        await db.rollback();
+        res.status(500).json({ message: error.message });
+    }
+});
+
+
     // =========================
     // OBTENER CLIENTES
     // =========================
@@ -248,53 +297,6 @@ router.get('/ventas/:id/pagos', async (req, res) => {
         });
     } catch (error) {
         res.status(500).send(error.message);
-    }
-});
-//nuevo abono 
-// Ruta para registrar un nuevo abono
-router.post('/ventas/:id_venta/abono', async (req, res) => {
-    const { id_venta } = req.params;
-    const { monto_abono } = req.body;
-
-    try {
-        await db.beginTransaction();
-
-        // 1. Obtener datos actuales de la venta
-        const [venta] = await db.query(
-            'SELECT total_venta, pago_acumulado FROM ventas WHERE id_venta = ?',
-            [id_venta]
-        );
-
-        if (venta.length === 0) throw new Error("Venta no encontrada");
-
-        const totalVenta = Number(venta[0].total_venta);
-        const pagoActual = Number(venta[0].pago_acumulado);
-        const nuevoPagoAcumulado = pagoActual + Number(monto_abono);
-
-        // 2. Validar que no pague de más
-        if (nuevoPagoAcumulado > totalVenta) {
-            return res.status(400).json({ message: "El abono supera el saldo pendiente" });
-        }
-
-        // 3. Registrar el abono en la tabla 'abonos'
-        await db.query(
-            'INSERT INTO abonos (id_venta, monto_abono) VALUES (?, ?)',
-            [id_venta, monto_abono]
-        );
-
-        // 4. Actualizar el pago acumulado y estado en la tabla 'ventas'
-        const nuevoEstado = (nuevoPagoAcumulado === totalVenta) ? 'cancelado' : 'pendiente';
-        await db.query(
-            'UPDATE ventas SET pago_acumulado = ?, estado_pago = ? WHERE id_venta = ?',
-            [nuevoPagoAcumulado, nuevoEstado, id_venta]
-        );
-
-        await db.commit();
-        res.json({ message: "Abono registrado con éxito", nuevoPagoAcumulado });
-
-    } catch (error) {
-        await db.rollback();
-        res.status(500).json({ message: error.message });
     }
 });
 
