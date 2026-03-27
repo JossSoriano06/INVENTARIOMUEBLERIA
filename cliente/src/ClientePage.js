@@ -18,6 +18,9 @@ function ClientePage() {
     const [selectedSale, setSelectedSale] = useState(null);
     const [saleItems, setSaleItems] = useState([]);
     const [pagoInicial, setPagoInicial] = useState(0);
+    const [loadingClientes, setLoadingClientes] = useState(false);
+    const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false); //modal 
+    const [lastVentaId, setLastVentaId] = useState(null);   //id de la ultima venta
 
     const [formDataCliente, setFormDataCliente] = useState({
         nombre_cliente: '',
@@ -40,13 +43,30 @@ function ClientePage() {
     }, []);
 
     const fetchClientes = async () => {
-        const res = await axios.get(API_URL_CLIENTES);
-        setClientes(res.data);
+        
+        try {   
+            setLoadingClientes(true);
+            const res = await axios.get(API_URL_CLIENTES);
+            setClientes(res.data);
+        }
+        catch (error) {
+            console.error('Error al cargar clientes:', error);
+            alert('No se pudieron cargar los clientes');
+        }
+        finally {
+        setLoadingClientes(false); 
+    }
     };
 
     const fetchProductos = async () => {
-        const res = await axios.get(API_URL_PRODUCTOS);
-        setProductosDisponibles(res.data);
+        try {          
+            const res = await axios.get(API_URL_PRODUCTOS);
+            setProductosDisponibles(res.data);
+        } catch (error) {
+            console.error('Error al cargar productos:', error);
+            alert('No se pudieron cargar los productos');
+        }
+        
     };
 
     const handleAddCliente = async (e) => {
@@ -144,7 +164,6 @@ function ClientePage() {
     // Nueva función para procesar venta con pago inicial
     const totalCarrito = cart.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
     const handleFinalizarVenta = async () => {
-    // 1. Validaciones previas
     if (!selectedClient) return alert("Por favor, selecciona un cliente primero.");
     if (cart.length === 0) return alert("El carrito está vacío.");
     
@@ -156,30 +175,33 @@ function ClientePage() {
     setLoading(true);
 
     try {
-        // 2. Mapear productos para el backend
         const productos = cart.map(p => ({
             id_producto: p.id_producto,
             color: p.color,
             cantidad: Number(p.cantidad),
             precio: Number(p.precio)
-            
         }));
 
-        // 3. Petición al servidor (Usamos selectedClient.id_clientes)
         const response = await axios.post(`${API_URL_CLIENTES}/${selectedClient.id_clientes}/ventas`, {
             productos: productos,
             pago_inicial: Number(pagoInicial)
         });
+        if (response.data && response.data.id_venta) {
+        setLastVentaId(response.data.id_venta); 
+     setShowSuccessSnackbar(true); // Mostramos el aviso
+    } else {
+    // Si el backend no envía el ID, usamos un alert de respaldo
+    alert("Venta registrada, pero no se pudo obtener el ID para la boleta.");
+    }
 
-        // 4. Éxito
-        alert("Venta registrada con éxito");
-        
-        // Limpiar todo y volver a la lista
+       
+        setLastVentaId(response.data.id_venta); 
+        setShowSuccessSnackbar(true); 
+
+        // Limpiar estado después de la venta
         setCart([]);
         setPagoInicial(0);
-        setSelectedClient(null);
-        setView('LISTA_CLIENTES');
-        fetchClientes(); // Refrescar por si acaso
+        fetchClientes(); 
 
     } catch (error) {
         console.error("Error en venta:", error);
@@ -188,7 +210,6 @@ function ClientePage() {
         setLoading(false);
     }
 };
-
 //funcion para ver nuevo abono 
 const handleRegistrarAbono = async (monto) => {
     if (!monto || monto <= 0) return alert("Ingrese un monto válido");
@@ -267,64 +288,90 @@ const handleRegistrarAbono = async (monto) => {
         return (
             <div className="container  mx-auto p-6">
                 <h1 className="text-3xl font-bold mb-6">Gestión de Clientes</h1>
+            
 
                 <form onSubmit={handleAddCliente} className="grid grid-cols-1 md:flex gap-4 mb-6">
-                    <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Nombre"
-                        value={formDataCliente.nombre_cliente}
-                        onChange={e => setFormDataCliente({ ...formDataCliente, nombre_cliente: e.target.value })}
-                        required
-                    />
-                    <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Apellido"
-                        value={formDataCliente.apellido_cliente}
-                        onChange={e => setFormDataCliente({ ...formDataCliente, apellido_cliente: e.target.value })}
-                        required
-                    />
-                    <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Referencia"
-                        value={formDataCliente.referencia_cliente}
-                        onChange={e => setFormDataCliente({ ...formDataCliente, referencia_cliente: e.target.value })}
-                        required
-                    />
-                    <button className="bg-indigo-600 shadow-sm text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 transition-colors w-full md:w-auto">Agregar</button>
-                </form>
-                <div className="overflow-x-auto">
-                <table className=" min-w-full divide-y shadow-lg divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className=" bg-white divide-y divide-gray-200">
-                        {clientes.map(c => (
-                            <tr key={c.id_clientes} className="hover:bg-indigo-50">
+        <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Nombre"
+            value={formDataCliente.nombre_cliente}
+            onChange={e => setFormDataCliente({ ...formDataCliente, nombre_cliente: e.target.value })}
+            required
+        />
+        <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Apellido"
+            value={formDataCliente.apellido_cliente}
+            onChange={e => setFormDataCliente({ ...formDataCliente, apellido_cliente: e.target.value })}
+            required
+        />
+        <input className="border p-2 rounded shadow-sm w-full md:w-auto flex-1" placeholder="Referencia"
+            value={formDataCliente.referencia_cliente}
+            onChange={e => setFormDataCliente({ ...formDataCliente, referencia_cliente: e.target.value })}
+            required
+        />
+        <button className="bg-indigo-600 shadow-sm text-white px-6 py-2 rounded font-bold hover:bg-indigo-700 transition-colors w-full md:w-auto">
+            Agregar
+        </button>
+    </form>
+
+    
+    <div className="overflow-x-auto">
+        {loadingClientes ? (
+            
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg shadow-lg border border-gray-100">
+                <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <p className="mt-4 text-indigo-600 font-medium animate-pulse">
+                    Cargando lista de clientes...
+                </p>
+            </div>
+        ) : (
+            
+            <table className="min-w-full divide-y shadow-lg divide-gray-200">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {clientes.length > 0 ? (
+                        clientes.map(c => (
+                            <tr key={c.id_clientes} className="hover:bg-indigo-50 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{c.id_clientes}</td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{c.nombre_cliente} ({c.referencia_cliente}) </td>
-                                <td className="space-x-3 whitespace-nowrap">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {c.nombre_cliente} {c.apellido_cliente} <span className="text-gray-400 text-xs">({c.referencia_cliente})</span>
+                                </td>
+                                <td className="px-6 py-4 space-x-3 whitespace-nowrap">
                                     <button
                                         onClick={() => { setSelectedClient(c); setView('NUEVA_VENTA'); }}
-                                        className="text-green-500 font-bold "
+                                        className="text-green-600 hover:text-green-800 font-bold"
                                     >
                                         Vender
                                     </button>
                                     <button
                                         onClick={() => verHistorialVentas(c)}
-                                        className="text-indigo-600 font-bold"
+                                        className="text-indigo-600 hover:text-indigo-800 font-bold"
                                     >
                                         Historial
                                     </button>
                                     <button 
                                         onClick={() => handleEliminarCliente(c.id_clientes)} 
-                                             className=" text-red-500 text-xs font-bold "
-                                            >
-                                                             ELIMINAR
-                                                 </button>
+                                        className="text-red-500 hover:text-red-700 text-xs font-bold"
+                                    >
+                                        ELIMINAR
+                                    </button>
                                 </td>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                </div>
+                        ))
+                    ) : (
+                        <tr>
+                            <td colSpan="3" className="px-6 py-10 text-center text-gray-500 italic">
+                                No se encontraron clientes registrados.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        )}
+    </div>
             </div>
         );
     }
@@ -476,7 +523,51 @@ const handleRegistrarAbono = async (monto) => {
 </div>
            
 
-                
+                {showSuccessSnackbar && (
+    <div className="fixed inset-0 flex items-center justify-center z-[100] bg-black/50 backdrop-blur-sm">
+        <div className="bg-white p-8 rounded-xl shadow-2xl border-t-8 border-green-500 max-w-sm w-full mx-4 transform transition-all">
+            <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">¡Venta Exitosa!</h3>
+                <p className="text-gray-500 mb-8">El registro se completó correctamente.</p>
+            </div>
+
+            <div className="space-y-3">
+                <button
+    onClick={() => {
+        // Usamos la URL completa a tu backend en Render
+        const urlBoleta = `https://muebleria-backend-9kfb.onrender.com/api/clientes/ventas/${lastVentaId}/boleta`;
+        
+        window.open(urlBoleta, '_blank');
+        
+        // Limpiamos y regresamos
+        setShowSuccessSnackbar(false);
+        setView('LISTA_CLIENTES');
+        setSelectedClient(null);
+    }}
+    className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700"
+>
+    Generar Boleta PDF
+</button>
+
+                <button
+                    onClick={() => {
+                        setShowSuccessSnackbar(false);
+                        setView('LISTA_CLIENTES');
+                        setSelectedClient(null);
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-200 transition-all"
+                >
+                    Aceptar y Volver
+                </button>
+            </div>
+        </div>
+    </div>
+)}
             </div>
         );
 }
@@ -632,7 +723,10 @@ const handleRegistrarAbono = async (monto) => {
             </div>
               
             </div>
+            
+            
         );
+        
     }
 }
 
