@@ -327,7 +327,7 @@ router.get('/ventas/:id/boleta', async (req, res) => {
         }
 
         const venta = ventaRows[0];
-        const numeroBoleta = `BOL-${String(id_venta).padStart(6, '0')}`;
+        const numeroBoleta = `NV-${String(id_venta).padStart(6, '0')}`;
         
         const fechaPeru = new Date().toLocaleDateString('es-PE', {
             timeZone: 'America/Lima',
