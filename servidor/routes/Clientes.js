@@ -187,7 +187,10 @@ module.exports = function (db) {
         }
 
         await db.commit();
-        res.json({ message: 'Venta registrada correctamente' });
+        res.json({ 
+            message: 'Venta registrada correctamente',
+            id_venta: id_venta
+        });
 
     } catch (error) {
         await db.rollback();
@@ -300,135 +303,108 @@ router.get('/ventas/:id/pagos', async (req, res) => {
 });
 
 router.get('/ventas/:id/boleta', async (req, res) => {
+    // 1. Declaramos el documento fuera para poder cerrarlo en el catch si es necesario
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+
     try {
-        const idVenta = req.params.id;
+        const id_venta = req.params.id;
 
-        // ===== DATOS DE LA VENTA =====
-       const [[venta]] = await db.query(`
-    SELECT 
-        v.id_venta,
-        v.total_venta,
-        c.nombre_cliente,
-        c.apellido_cliente
-    FROM ventas v
-    JOIN clientes c ON c.id_clientes = v.id_cliente
-    WHERE v.id_venta = ?
-`, [idVenta]);
+        // 2. OBTENER DATOS (Importante: hacerlo con await antes del pipe)
+        const [ventaRows] = await db.query(`
+            SELECT v.*, c.nombre_cliente, c.apellido_cliente 
+            FROM ventas v 
+            JOIN clientes c ON v.id_cliente = c.id_clientes 
+            WHERE v.id_venta = ?`, [id_venta]);
 
-        // ===== DETALLE =====
         const [detalle] = await db.query(`
-            SELECT 
-                p.nombre_producto,
-                d.color,
-                d.cantidad_detalle_ventas_productos AS cantidad,
-                d.precio_detalle_ventas_productos AS precio,
-                d.sub_total_detalle_ventas AS subtotal
-            FROM detalle_ventas d
-            JOIN productos p ON p.id_producto = d.id_producto
-            WHERE d.id_venta = ?
-        `, [idVenta]);
+            SELECT dv.*, p.nombre_producto 
+            FROM detalle_ventas dv 
+            JOIN productos p ON dv.id_producto = p.id_producto 
+            WHERE dv.id_venta = ?`, [id_venta]);
 
-        // ===== NUMERACIÓN =====
-        const [[serieData]] = await db.query(
-            'SELECT * FROM boleta_serie WHERE id = 1'
-        );
+        if (ventaRows.length === 0) {
+            return res.status(404).send("Venta no encontrada");
+        }
 
-        const nuevoCorrelativo = serieData.correlativo + 1;
+        const venta = ventaRows[0];
+        const numeroBoleta = `BOL-${String(id_venta).padStart(6, '0')}`;
+        
+        const fechaPeru = new Date().toLocaleDateString('es-PE', {
+            timeZone: 'America/Lima',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        });
 
-        await db.query(
-            'UPDATE boleta_serie SET correlativo = ? WHERE id = 1',
-            [nuevoCorrelativo]
-        );
+        // 3. CONFIGURAR RESPUESTA
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename=${numeroBoleta}.pdf`);
+        doc.pipe(res);
 
-        const numeroBoleta = `${serieData.serie}-${String(nuevoCorrelativo).padStart(6, '0')}`;
+        // ===== DISEÑO DEL PDF =====
+        
+        // Logo (con protección por si no existe en el servidor)
+        try {
+            const logoPath = path.join(__dirname, '../assets/logo2.png');
+            doc.image(logoPath, 40, 40, { width: 70 });
+        } catch (e) {
+            doc.fontSize(15).text('MUEBLERÍA', 40, 40); 
+        }
 
-        // ===== PDF SETUP =====
-const doc = new PDFDocument({ size: 'A4', margin: 40 });
-const fechaPeru = new Date().toLocaleDateString('es-PE', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-});
+        doc.fillColor('#1a1a1a')
+           .fontSize(16).font('Helvetica-Bold').text('MUEBLERIA "EL MARQUÉZ"', 130, 45)
+           .fontSize(9).font('Helvetica').text('TELF: 995888883', 130, 65)
+           .text('PILCOMAYO - HUANCAYO - JUNIN', 130, 78);
 
-res.setHeader('Content-Type', 'application/pdf');
-res.setHeader('Content-Disposition', `inline; filename=${numeroBoleta}.pdf`);
+        // Recuadro Boleta
+        doc.rect(380, 40, 180, 75).lineWidth(1.5).stroke('#050a17'); 
+        doc.fillColor('#050a17').fontSize(11).font('Helvetica-Bold').text('NOTA DE VENTA', 390, 50, { width: 160, align: 'center' });
+        doc.fillColor('black').fontSize(12).text(numeroBoleta, 390, 70, { align: 'center' });
+        doc.fontSize(9).font('Helvetica').text(`Fecha: ${fechaPeru}`, 390, 95, { align: 'center' });
 
-doc.pipe(res);
+        // Datos Cliente
+        doc.roundedRect(40, 130, 520, 40, 5).lineWidth(0.5).stroke('#cccccc');
+        doc.fontSize(10).font('Helvetica-Bold').text('CLIENTE:', 50, 145);
+        doc.font('Helvetica').text(`${venta.nombre_cliente} ${venta.apellido_cliente}`, 105, 145);
 
-// ===== LOGO Y ENCABEZADO =====
-doc.image(path.join(__dirname, '../assets/logo2.png'), 40, 40, { width: 70 });
+        // Tabla
+        let currentY = 200;
+        doc.rect(40, currentY, 520, 20).fill('#f3f4f6').stroke('#eeeeee');
+        doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9);
+        doc.text('ITEM', 45, currentY + 6);
+        doc.text('DESCRIPCIÓN', 90, currentY + 6);
+        doc.text('PRECIO', 350, currentY + 6);
+        doc.text('CANT.', 430, currentY + 6);
+        doc.text('SUBTOTAL', 500, currentY + 6);
 
-doc.fillColor('#1a1a1a')
-   .fontSize(16).font('Helvetica-Bold').text('MUEBLERIA "EL MARQUÉZ"', 130, 45)
-   .fontSize(9).font('Helvetica').text('TELF: 995888883', 130, 65)
-   .text('PILCOMAYO - HUANCAYO - JUNIN', 130, 78)
-   .fontSize(8).fillColor('gray').text('Fabricación y venta de muebles para el hogar y oficina', 130, 92);
+        currentY += 25;
+        doc.fillColor('black').font('Helvetica').fontSize(9);
 
-// ===== RECUADRO DEL COMPROBANTE =====
-doc.rect(380, 40, 180, 75).lineWidth(1.5).stroke('#050a17'); 
-doc.fillColor('#050a17').fontSize(11).font('Helvetica-Bold').text('NOTA DE VENTA', 390, 50, { width: 160, align: 'center' });
-doc.fillColor('black').fontSize(12).text(numeroBoleta, 390, 70, { align: 'center' });
-doc.fontSize(9).font('Helvetica').text(`Fecha: ${fechaPeru}`, 390, 95, { align: 'center' });
+        detalle.forEach((d, index) => {
+            doc.text(index + 1, 45, currentY);
+            doc.text(`${d.nombre_producto} - ${d.color || 'N/A'}`, 90, currentY);
+            doc.text(`S/ ${parseFloat(d.precio_detalle_ventas_productos).toFixed(2)}`, 350, currentY);
+            doc.text(d.cantidad_detalle_ventas_productos, 430, currentY);
+            doc.font('Helvetica-Bold').text(`S/ ${parseFloat(d.sub_total_detalle_ventas).toFixed(2)}`, 500, currentY);
+            doc.font('Helvetica');
+            currentY += 20;
+        });
 
-// ===== DATOS DEL CLIENTE =====
-doc.roundedRect(40, 130, 520, 40, 5).lineWidth(0.5).stroke('#cccccc');
-doc.fontSize(10).font('Helvetica-Bold').text('CLIENTE:', 50, 145);
-doc.font('Helvetica').text(`${venta.nombre_cliente} ${venta.apellido_cliente}`, 105, 145);
+        // Total
+        doc.rect(380, currentY + 10, 180, 25).fill('#f3f4f6').stroke('#eeeeee');
+        doc.fillColor('#374151').font('Helvetica-Bold').fontSize(11);
+        doc.text('TOTAL:', 390, currentY + 17);
+        doc.text(`S/ ${parseFloat(venta.total_venta).toFixed(2)}`, 500, currentY + 17);
 
-doc.moveDown(4);
+        // Finalizar el stream
+        doc.end();
 
-// ===== TABLA DE PRODUCTOS =====
-const tableTop = 200;
-const itemCodeX = 40;
-const descriptionX = 90;
-const priceX = 350;
-const quantityX = 430;
-const amountX = 500;
-
-// Encabezado de la tabla (con fondo gris)
-doc.rect(40, tableTop, 520, 20).fill('#f3f4f6').stroke('#eeeeee');
-doc.fillColor('#374151').font('Helvetica-Bold').fontSize(9);
-doc.text('ITEM', itemCodeX, tableTop + 6);
-doc.text('DESCRIPCIÓN', descriptionX, tableTop + 6);
-doc.text('PRECIO', priceX, tableTop + 6);
-doc.text('CANT.', quantityX, tableTop + 6);
-doc.text('SUBTOTAL', amountX, tableTop + 6);
-
-// Filas de la tabla
-let currentY = tableTop + 25;
-doc.fillColor('black').font('Helvetica').fontSize(9);
-
-detalle.forEach((d, index) => {
-    // Línea divisoria suave entre filas
-    doc.moveTo(40, currentY + 15).lineTo(560, currentY + 15).lineWidth(0.5).stroke('#eeeeee');
-
-    doc.text(index + 1, itemCodeX, currentY);
-    doc.text(`${d.nombre_producto} - ${d.color || 'N/A'}`, descriptionX, currentY);
-    doc.text(`S/ ${parseFloat(d.precio).toFixed(2)}`, priceX, currentY);
-    doc.text(d.cantidad, quantityX, currentY);
-    doc.font('Helvetica-Bold').text(`S/ ${parseFloat(d.subtotal).toFixed(2)}`, amountX, currentY);
-    
-    doc.font('Helvetica'); // Reset font
-    currentY += 25; // Espaciado entre filas
-});
-
-// ===== TOTALES =====
-const footerTop = currentY + 20;
-
-doc.rect(380, footerTop - 20, 180, 25).fill('#f3f4f6').stroke('#eeeeee');
-doc.fillColor('#374151').font('Helvetica-Bold').fontSize(11);
-doc.text('TOTAL:', 390, footerTop - 15);
-doc.text(`S/ ${parseFloat(venta.total_venta).toFixed(2)}`, 500, footerTop - 15);
-
-// ===== PIE DE PÁGINA =====
-doc.fillColor('gray').fontSize(8).font('Helvetica-Oblique')
-   .text('Gracias por su preferencia. La muebleria "El Marquéz" es sinónimo de calidad.', 40, 750, { align: 'center' });
-
-doc.end();
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error al generar boleta' });
+        console.error("ERROR GENERANDO PDF:", error);
+        if (!res.headersSent) {
+            res.status(500).send("Error al generar el PDF: " + error.message);
+        } else {
+            // Si el error ocurrió a mitad del pipe, cerramos forzosamente
+            doc.end();
+        }
     }
 });
 
