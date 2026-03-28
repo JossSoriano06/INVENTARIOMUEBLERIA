@@ -378,54 +378,91 @@ const handleRegistrarAbono = async (monto) => {
 
     if (view === 'NUEVA_VENTA') {
         return (
-            <div className="container mx-auto p-6">
+            <div className="container mx-auto pl-6 pr-6 ">
                 <button onClick={() => setView('LISTA_CLIENTES')} className="mb-4 text-indigo-600">← Volver</button>
 
-                <h2 className="text-2xl font-bold mb-4">
-                    Nueva venta - {selectedClient.nombre_cliente}
-                </h2>
+                <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 mb-8">
+  
+            <h3 className="text-sm font-bold text-gray-600 uppercase mb-4 tracking-widest">Nueva venta - {selectedClient.nombre_cliente}</h3>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+    
+    
+    <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
+      <label className="text-xs font-bold text-gray-500 uppercase ml-1">Producto</label>
+      <select 
+        className="w-full border-2 border-gray-100 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:border-indigo-500 transition-all outline-none cursor-pointer text-sm"
+        value={currentItem.id_producto} 
+        onChange={handleSelectProducto}
+      >
+        <option value="">Seleccionar...</option>
+        {productosDisponibles.map(p => (
+          <option key={p.id} value={p.id}>{p.nombre}</option>
+        ))}
+      </select>
+    </div>
 
-                <div className="grid grid-cols-4 gap-4 mb-6">
-                    <select className="border p-2" value={currentItem.id_producto} onChange={handleSelectProducto}>
-                        <option value="">Producto</option>
-                        {productosDisponibles.map(p => (
-                            <option key={p.id} value={p.id}>
-                                {p.nombre}
-                            </option>
-                        ))}
-                    </select>
-                    <select className="border p-2" value={currentItem.color} onChange={e => setCurrentItem({ ...currentItem, color: e.target.value })}>
-                        <option value="">Color</option>
-                        <option value="Ibiza">Ibiza</option>
-                        <option value="Chantilly">Chantilly</option>
-                        <option value="Humo">Humo</option>
-                        <option value="Wenge">Wenge</option>
-                        <option value="Cedro">Cedro</option>
-                        <option value="Lila">Lila</option>
-                        <option value="Rosado">Rosado</option>
-                        <option value="Arena">Arena</option>
-                        <option value="Light Sonoma">Light Sonoma</option>
-                        <option value="Caramelo">Caramelo</option>
-                        <option value="Blanco">Blanco</option>
-                        <option value="Natural">N/A</option>
-                        
-                    </select>
-                   
+    {/* Color */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-bold text-gray-500 uppercase ml-1">Color</label>
+      <select 
+        className="w-full border-2 border-gray-100 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:border-indigo-500 transition-all outline-none cursor-pointer text-sm"
+        value={currentItem.color} 
+        onChange={e => setCurrentItem({ ...currentItem, color: e.target.value })}
+      >
+        <option value="">Color</option>
+      <option value="Ibiza">Ibiza</option>
+      <option value="Chantilly">Chantilly</option>
+      <option value="Humo">Humo</option>
+      <option value="Wenge">Wenge</option>
+      <option value="Cedro">Cedro</option>
+      <option value="Lila">Lila</option>
+      <option value="Rosado">Rosado</option>
+      <option value="Arena">Arena</option>
+      <option value="Light Sonoma">Light Sonoma</option>
+      <option value="Caramelo">Caramelo</option>
+      <option value="Blanco">Blanco</option>
+      <option value="Natural">N/A</option>
+      </select>
+    </div>
 
-                    <input type="number" className="border p-2"
-                        value={currentItem.precio}
-                        onChange={e => setCurrentItem({ ...currentItem, precio: e.target.value })}
-                    />
-                    
+    {/* Precio */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-bold text-gray-500 uppercase ml-1">Precio</label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">S/</span>
+        <input 
+          type="number" 
+          className="w-full border-2 border-gray-100 rounded-lg p-2.5 pl-8 bg-gray-50 focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+          value={currentItem.precio}
+          onChange={e => setCurrentItem({ ...currentItem, precio: e.target.value })}
+        />
+      </div>
+    </div>
 
-                    <input type="number" className="border p-2"
-                        value={currentItem.cantidad}
-                        onChange={e => setCurrentItem({ ...currentItem, cantidad: e.target.value })}
-                    />
+    {/* Cantidad */}
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-bold text-gray-500 uppercase ml-1">Cant.</label>
+      <input 
+        type="number" 
+        className="w-full border-2 border-gray-100 rounded-lg p-2.5 bg-gray-50 focus:bg-white focus:border-indigo-500 transition-all outline-none text-sm"
+        value={currentItem.cantidad}
+        onChange={e => setCurrentItem({ ...currentItem, cantidad: e.target.value })}
+      />
+    </div>
 
-                    <button onClick={agregarAlCarrito}
-                        className="bg-green-600 text-white rounded p-2 ">Añadir</button>
-                </div>
+    {/* Botón - En móvil ocupa todo el ancho, en PC se alinea al final */}
+    <button 
+      onClick={agregarAlCarrito}
+      className="w-full lg:w-full h-[46px] bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white font-bold rounded-lg shadow-md shadow-green-100 transition-all flex items-center justify-center gap-2 mt-2 lg:mt-0"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+      </svg>
+      <span>Añadir</span>
+    </button>
+
+  </div>
+</div>
 
                 <table className="min-w-full divide-y divide-gray-200 ">
                     <thead className="bg-gray-50">
@@ -518,7 +555,7 @@ const handleRegistrarAbono = async (monto) => {
             : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg'
         }`}
     >
-        {loading ? 'Procesando...' : 'Confirmar y Finalizar Venta'}
+        {loading ? 'Procesando...' : 'Confirmar Venta'}
     </button>
 </div>
            
