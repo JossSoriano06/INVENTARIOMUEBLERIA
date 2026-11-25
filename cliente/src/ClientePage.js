@@ -137,36 +137,7 @@ function ClientePage() {
         setCart(newCart);
     };
 
-    const procesarVentaFinal = async () => {
-        if (!selectedClient) return alert('Seleccione cliente');
-        if (cart.length === 0) return alert('Carrito vacío');
-
-        setLoading(true);
-
-        try {
-            const productos = cart.map(p => ({
-                id_producto: p.id_producto,
-                color: p.color,
-                cantidad: Number(p.cantidad),
-                precio: Number(p.precio)
-            }));
-
-            await axios.post(
-                `${API_URL_CLIENTES}/${selectedClient.id_clientes}/ventas`,
-                { productos }
-            );
-
-            alert('Venta registrada correctamente');
-            setCart([]);
-            setView('LISTA_CLIENTES');
-
-        } catch (error) {
-            console.error(error);
-            alert('Error al procesar venta');
-        } finally {
-            setLoading(false);
-        }
-    };
+    
 
     const totalCarrito = cart.reduce(
         (acc, item) => acc + (item.cantidad * item.precio),

@@ -6,8 +6,6 @@ import {
     ResponsiveContainer,
     AreaChart,
     Area,
-    BarChart,
-    Bar,
     PieChart,
     Pie,
     Cell,
