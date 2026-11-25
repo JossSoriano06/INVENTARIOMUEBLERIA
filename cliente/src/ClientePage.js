@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3004';
+const BASE_URL = (
+    process.env.REACT_APP_API_URL || 'http://localhost:3004'
+).replace(/\/+$/, '');
 
 const API_URL_CLIENTES = `${BASE_URL}/api/clientes`;
 const API_URL_PRODUCTOS = `${BASE_URL}/api/productos`;
@@ -41,6 +43,102 @@ function ClientePage() {
         fetchClientes();
         fetchProductos();
     }, []);
+
+
+
+// =====================================
+// GENERAR Y VISUALIZAR BOLETA PDF
+// =====================================
+
+const generarBoleta = async (idVenta) => {
+
+    // Abrir la pestaña durante el evento del usuario
+    // para evitar que el navegador bloquee el PDF.
+    const nuevaVentana = window.open('', '_blank');
+
+    try {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            throw new Error('Tu sesión ha expirado. Inicia sesión nuevamente.');
+        }
+
+        const response = await axios.get(
+            `${API_URL_CLIENTES}/ventas/${idVenta}/boleta`,
+            {
+                responseType: 'blob',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const tipoContenido = response.headers['content-type'] || '';
+
+        // Comprobar que el servidor realmente devolvió un PDF.
+        if (!tipoContenido.includes('application/pdf')) {
+            const texto = await response.data.text();
+            let mensaje = texto;
+
+            try {
+                const datos = JSON.parse(texto);
+                mensaje = datos.message || texto;
+            } catch {
+                // Mantener el mensaje recibido.
+            }
+
+            throw new Error(mensaje || 'El servidor no devolvió un PDF.');
+        }
+
+        const archivoPDF = new Blob(
+            [response.data],
+            { type: 'application/pdf' }
+        );
+
+        const urlPDF = window.URL.createObjectURL(archivoPDF);
+
+        if (nuevaVentana && !nuevaVentana.closed) {
+            nuevaVentana.location.href = urlPDF;
+        } else {
+            // Alternativa si el navegador bloquea la ventana emergente.
+            const enlace = document.createElement('a');
+            enlace.href = urlPDF;
+            enlace.download = `boleta_venta_${idVenta}.pdf`;
+            document.body.appendChild(enlace);
+            enlace.click();
+            enlace.remove();
+        }
+
+        // Liberar memoria después de que el navegador haya cargado el PDF.
+        setTimeout(() => {
+            window.URL.revokeObjectURL(urlPDF);
+        }, 300000);
+
+    } catch (error) {
+
+        if (nuevaVentana && !nuevaVentana.closed) {
+            nuevaVentana.close();
+        }
+
+        console.error('Error al generar la boleta:', error);
+
+        let mensaje = error.message || 'No se pudo generar la boleta.';
+
+        if (error.response?.data instanceof Blob) {
+            try {
+                const texto = await error.response.data.text();
+                const datos = JSON.parse(texto);
+                mensaje = datos.message || mensaje;
+            } catch {
+                // Conservar el mensaje original.
+            }
+        } else if (error.response?.data?.message) {
+            mensaje = error.response.data.message;
+        }
+
+        alert(mensaje);
+    }
+};
 
     const fetchClientes = async () => {
         try {
@@ -704,13 +802,12 @@ function ClientePage() {
                             <div className="space-y-3">
                                 <button
                                     onClick={() => {
-                                        const urlBoleta = `https://muebleria-backend-9kfb.onrender.com/api/clientes/ventas/${lastVentaId}/boleta`;
-                                        window.open(urlBoleta, '_blank');
+                                            generarBoleta(lastVentaId);
 
-                                        setShowSuccessSnackbar(false);
-                                        setView('LISTA_CLIENTES');
-                                        setSelectedClient(null);
-                                    }}
+                                            setShowSuccessSnackbar(false);
+                                            setView('LISTA_CLIENTES');
+                                            setSelectedClient(null);
+                                        }}
                                     className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700"
                                 >
                                     Generar Boleta PDF
@@ -1148,14 +1245,11 @@ function ClientePage() {
 
                     <div className="flex justify-end">
                         <button
-                            onClick={() => window.open(
-                                `${BASE_URL}/api/clientes/ventas/${selectedSale.id_venta}/boleta`,
-                                '_blank'
-                            )}
-                            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800"
-                        >
-                            🧾 Generar boleta PDF
-                        </button>
+                        onClick={() => generarBoleta(selectedSale.id_venta)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800"
+                    >
+                        🧾 Generar boleta PDF
+                    </button>
                     </div>
                 </div>
             </div>
