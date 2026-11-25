@@ -10,7 +10,21 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-const API_URL = 'http://localhost:3004/api';
+// =====================================
+// CONFIGURACIÓN DE LA API
+// =====================================
+
+// En producción utiliza Render.
+// En desarrollo local utiliza localhost.
+// También permite configurar la URL mediante variables de entorno.
+
+const API_BASE_URL =
+    process.env.REACT_APP ||
+    (process.env.NODE_ENV === 'production'
+        ? 'https://muebleria-backend-9kfb.onrender.com'
+        : 'http://localhost:3004');
+
+const API_URL = `${API_BASE_URL.replace(/\/+$/, '')}/api`;
 
 export function AuthProvider({ children }) {
 
@@ -28,11 +42,15 @@ export function AuthProvider({ children }) {
         }
     });
 
-    // Configurar automáticamente el JWT en las peticiones Axios
+    // =====================================
+    // CONFIGURACIÓN AUTOMÁTICA DEL JWT
+    // =====================================
+
     useEffect(() => {
 
         if (token) {
-            axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+            axios.defaults.headers.common.Authorization =
+                `Bearer ${token}`;
         } else {
             delete axios.defaults.headers.common.Authorization;
         }
@@ -43,7 +61,10 @@ export function AuthProvider({ children }) {
 
     }, [token]);
 
-    // Iniciar sesión
+    // =====================================
+    // INICIAR SESIÓN
+    // =====================================
+
     const login = async (usuario, password) => {
 
         const response = await axios.post(
@@ -51,10 +72,15 @@ export function AuthProvider({ children }) {
             { usuario, password }
         );
 
-        const { token: nuevoToken, administrador } = response.data;
+        const {
+            token: nuevoToken,
+            administrador
+        } = response.data;
 
         if (!nuevoToken || !administrador) {
-            throw new Error('La respuesta del servidor no contiene los datos esperados.');
+            throw new Error(
+                'La respuesta del servidor no contiene los datos esperados.'
+            );
         }
 
         localStorage.setItem('token', nuevoToken);
@@ -70,7 +96,10 @@ export function AuthProvider({ children }) {
         return response.data;
     };
 
-    // Cerrar sesión
+    // =====================================
+    // CERRAR SESIÓN
+    // =====================================
+
     const logout = () => {
 
         localStorage.removeItem('token');
@@ -79,6 +108,10 @@ export function AuthProvider({ children }) {
         setToken(null);
         setUsuario(null);
     };
+
+    // =====================================
+    // CONTEXTO DE AUTENTICACIÓN
+    // =====================================
 
     return (
         <AuthContext.Provider
